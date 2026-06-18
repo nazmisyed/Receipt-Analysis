@@ -10,3 +10,4 @@ pydantic-ai
 dotenv
 openai
 oauth2client
+gspread

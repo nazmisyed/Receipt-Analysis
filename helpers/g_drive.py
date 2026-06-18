@@ -49,11 +49,22 @@ CREDS_DICT = {
 
 DRIVE_ID = ""
 
+def get_creds() -> Any:
+    try:
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(CREDS_DICT, GOOGLE_SCOPES)
+        logger.info("Google credentials created successfully.")
+        return creds
+    except Exception as e:
+        logger.error(f"Error creating Google credentials: {e}")
+        return None
+
 #https://developers.google.com/workspace/drive/api/quickstart/python?authuser=1
 # https://googleapis.dev/python/google-auth/latest/reference/google.oauth2.credentials.html
 def get_drive_service() -> Any:
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(CREDS_DICT, GOOGLE_SCOPES)
+        creds = get_creds()
+        if not creds:
+            return None
         service = build('drive', 'v3', credentials=creds)
         logger.info("Google Drive service created successfully.")
         return service
