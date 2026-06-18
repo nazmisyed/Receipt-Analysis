@@ -48,7 +48,7 @@ def get_model_settings() -> OpenAIChatModelSettings:
     )
 
 
-async def extract_receipt_info(img_data) -> ReceiptExtraction:
+async def extract_receipt_info(img_data: bytes, media_type: str = "image/jpeg") -> ReceiptExtraction:
     model = get_azureopenai_model()
     settings = get_model_settings()
     agent = Agent(
@@ -57,7 +57,7 @@ async def extract_receipt_info(img_data) -> ReceiptExtraction:
         output_type=ReceiptExtraction,
         model_settings=settings,
     )
-    image_input = [BinaryContent(data=img_data, media_type="image/jpeg") ]
+    image_input = [BinaryContent(data=img_data, media_type=media_type)]
     response = await agent.run(user_prompt=image_input)
     output = response.model_dump(mode="json")
     output["Processed_Date_Time"] = datetime.now(timezone.utc).isoformat()

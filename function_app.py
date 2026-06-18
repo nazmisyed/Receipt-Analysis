@@ -12,3 +12,4 @@ def receipt_ingestion(myTimer: func.TimerRequest) -> None:
         print("Receipt ingestion run started.")
     except Exception:
         logging.exception("Receipt ingestion run failed.")
+

@@ -9,3 +9,4 @@ pydantic
 pydantic-ai
 dotenv
 openai
+oauth2client
