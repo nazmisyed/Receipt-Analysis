@@ -17,30 +17,35 @@ MYT = timezone(timedelta(hours=8), name="MYT")
 
 
 class ReceiptExtraction(BaseModel):
-    Receipt_Date_Time: str
+    Receipt_Date: str
     Title: str
     Total_Amount: float
-    File_Name: str
     Confidence: Literal["low", "medium", "high"]
 
 
 INSTRUCTIONS = """
-You extract receipt information from receipt images.
-Return dates using ISO 8601 in MYT (UTC+08:00): YYYY-MM-DDTHH:MM:SS+08:00.
-For Receipt_Date_Time, if the exact time is missing on receipt, use 00:00:00.
-Keep Confidence as one of: low, medium, high.
-Title is the Vendor Name or Store Name on the receipt. If not found, use "Unknown".
+You are an expert data extraction assistant. Your task is to accurately extract structured information from receipt images.
+
+Strictly adhere to the following rules for each field:
+
+1. Receipt_Date: These receipts are from Malaysia. You MUST assume any ambiguous dates printed on the receipt follow the DD/MM/YYYY (Day-Month-Year) format. Extract the date and convert it to be formatted STRICTLY as YYYY-MM-DD (e.g., "2024-06-18"). Do NOT include the time. If missing, use "Unknown".
+2. Title: Extract the primary Vendor, Merchant, or Store Name. Do not include branch locations unless part of the main name. If completely unreadable, output "Unknown".
+3. Total_Amount: Extract the FINAL total amount paid. Do not extract the subtotal or tax amounts. Return only the numeric value. Do NOT include currency symbols (e.g., return 31.00, not $31.00).
+4. Confidence: Assess the legibility of the receipt. 
+   - Use "high" if all extracted fields are clearly visible.
+   - Use "medium" if the image is blurry but readable.
+   - Use "low" if critical information is cut off, heavily distorted, or guessed.
 """
 
 
-def _format_myt(value: datetime) -> str:
-    return value.astimezone(MYT).strftime("%Y-%m-%dT%H:%M:%S%z")[:-2] + ":" + value.astimezone(MYT).strftime("%Y-%m-%dT%H:%M:%S%z")[-2:]
+def _format_date(value: datetime) -> str:
+    return value.astimezone(MYT).strftime("%Y-%m-%d")
 
 
-def _normalize_receipt_datetime(value: str) -> str:
+def _normalize_receipt_date(value: str) -> str:
     normalized = (value or "").strip().replace("Z", "+00:00")
     if not normalized:
-        return _format_myt(datetime.now(tz=MYT))
+        return _format_date(datetime.now(tz=MYT))
 
     try:
         parsed = datetime.fromisoformat(normalized)
@@ -49,12 +54,12 @@ def _normalize_receipt_datetime(value: str) -> str:
         try:
             parsed = datetime.strptime(normalized, "%Y-%m-%d").replace(tzinfo=MYT)
         except ValueError:
-            return _format_myt(datetime.now(tz=MYT))
+            return _format_date(datetime.now(tz=MYT))
 
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=MYT)
 
-    return _format_myt(parsed)
+    return _format_date(parsed)
 
 
 def get_azureopenai_model() -> OpenAIResponsesModel:
@@ -89,6 +94,6 @@ async def extract_receipt_info(img_data: bytes, media_type: str = "image/jpeg") 
     image_input = [BinaryContent(data=img_data, media_type=media_type)]
     response = await agent.run(user_prompt=image_input)
     output = response.output.model_dump(mode="json")
-    output["Receipt_Date_Time"] = _normalize_receipt_datetime(output.get("Receipt_Date_Time", ""))
-    output["Processed_Date_Time"] = _format_myt(datetime.now(tz=MYT))
+    output["Receipt_Date"] = _normalize_receipt_date(output.get("Receipt_Date", ""))
+    output["Processed_Date_Time"] = _format_date(datetime.now(tz=MYT))
     return output
