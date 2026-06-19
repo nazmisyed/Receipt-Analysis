@@ -143,7 +143,7 @@ async def _run_receipt_ingestion() -> int:
 
 
 @app.timer_trigger(
-    schedule="0 * * * * 6",
+    schedule="0 0 0 * * 6",
     arg_name="myTimer",
     run_on_startup=True,
     use_monitor=False,
