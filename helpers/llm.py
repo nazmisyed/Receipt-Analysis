@@ -29,6 +29,7 @@ You extract receipt information from receipt images.
 Return dates using ISO 8601 in MYT (UTC+08:00): YYYY-MM-DDTHH:MM:SS+08:00.
 For Receipt_Date_Time, if the exact time is missing on receipt, use 00:00:00.
 Keep Confidence as one of: low, medium, high.
+Title is the Vendor Name or Store Name on the receipt. If not found, use "Unknown".
 """
 
 

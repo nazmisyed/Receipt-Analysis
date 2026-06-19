@@ -1,4 +1,5 @@
 from typing import Any
+import asyncio
 
 import azure.functions as func
 
@@ -55,6 +56,58 @@ def _sheet_row_from_result(worksheet: Any, llm_result: dict[str, Any]) -> list[s
     return [str(llm_result.get(column, "")) for column in columns]
 
 
+async def _process_single_file(
+    drive_service: Any,
+    worksheet: Any,
+    file_item: dict[str, Any],
+    existing_names: set[str],
+    semaphore: asyncio.Semaphore,
+) -> tuple[bool, str]:
+    """Process a single file and return (success, filename)."""
+    file_id = file_item.get("id")
+    file_name = file_item.get("name", "")
+    mime_type = file_item.get("mimeType", "")
+    normalized_name = _normalized_filename(file_name)
+
+    if not file_id or not file_name:
+        logger.warning("Skipping invalid file item: %s", file_item)
+        return False, file_name
+
+    if normalized_name in existing_names:
+        logger.info("Skipping existing file in sheet: %s", file_name)
+        return False, file_name
+
+    if mime_type not in SUPPORTED_IMAGE_MIME_TYPES:
+        logger.info("Skipping unsupported mime type for file %s: %s", file_name, mime_type)
+        return False, file_name
+
+    file_bytes = download_file_as_binary(drive_service, file_id)
+    if not file_bytes:
+        logger.warning("Skipping file due to empty binary download: %s", file_name)
+        return False, file_name
+
+    try:
+        async with semaphore:  # Limit concurrent LLM calls
+            llm_result = await extract_receipt_info(file_bytes, media_type=mime_type)
+        
+        llm_result = dict(llm_result)
+        llm_result["File_Name"] = file_name
+
+        row_data = _sheet_row_from_result(worksheet, llm_result)
+        appended = append_row_to_worksheet(worksheet, row_data)
+        
+        if appended:
+            existing_names.add(normalized_name)
+            logger.info("Processed and appended file: %s", file_name)
+            return True, file_name
+        else:
+            logger.error("Failed to append row for file: %s", file_name)
+            return False, file_name
+    except Exception as e:
+        logger.error("Error processing file %s: %s", file_name, e)
+        return False, file_name
+
+
 async def _run_receipt_ingestion() -> int:
     drive_service = get_drive_service()
     if not drive_service:
@@ -71,44 +124,21 @@ async def _run_receipt_ingestion() -> int:
     existing_names = _existing_file_names(sheet_records)
     logger.info("Found %s files in Drive and %s existing sheet records.", len(drive_files), len(sheet_records))
 
-    processed_count = 0
-
-    for file_item in drive_files:
-        file_id = file_item.get("id")
-        file_name = file_item.get("name", "")
-        mime_type = file_item.get("mimeType", "")
-        normalized_name = _normalized_filename(file_name)
-
-        if not file_id or not file_name:
-            logger.warning("Skipping invalid file item: %s", file_item)
-            continue
-
-        if normalized_name in existing_names:
-            logger.info("Skipping existing file in sheet: %s", file_name)
-            continue
-
-        if mime_type not in SUPPORTED_IMAGE_MIME_TYPES:
-            logger.info("Skipping unsupported mime type for file %s: %s", file_name, mime_type)
-            continue
-
-        file_bytes = download_file_as_binary(drive_service, file_id)
-        if not file_bytes:
-            logger.warning("Skipping file due to empty binary download: %s", file_name)
-            continue
-
-        llm_result = await extract_receipt_info(file_bytes, media_type=mime_type)
-        llm_result = dict(llm_result)
-        llm_result["File_Name"] = file_name
-
-        row_data = _sheet_row_from_result(worksheet, llm_result)
-        appended = append_row_to_worksheet(worksheet, row_data)
-        if appended:
-            existing_names.add(normalized_name)
-            processed_count += 1
-            logger.info("Processed and appended file: %s", file_name)
-        else:
-            logger.error("Failed to append row for file: %s", file_name)
-
+    # Process up to 5 files concurrently (adjust based on rate limits)
+    semaphore = asyncio.Semaphore(5)
+    
+    # Create tasks for all files
+    tasks = [
+        _process_single_file(drive_service, worksheet, file_item, existing_names, semaphore)
+        for file_item in drive_files
+    ]
+    
+    # Process all files concurrently
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Count successful processes
+    processed_count = sum(1 for result in results if isinstance(result, tuple) and result[0])
+    
     return processed_count
 
 
