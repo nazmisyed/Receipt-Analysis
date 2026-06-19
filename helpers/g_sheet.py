@@ -29,30 +29,11 @@ def append_row_to_worksheet(worksheet: Any, row_data: list) -> bool:
         logger.error(f"Error appending row to the worksheet: {e}")
         return False
 
-
-# # 4. Open the Google Sheet by its title
-# # (Note: The service account MUST be shared on this file)
-# spreadsheet = client.open("Name of Your Google Sheet")
-# worksheet = spreadsheet.sheet1  # Grabs the first tab/worksheet
-
-# # ==========================================
-# # --- READ DATA ---
-# # ==========================================
-
-# # get_all_records() returns a list of dictionaries. 
-# # It intelligently assumes your first row contains your headers.
-# data = worksheet.get_all_records()
-
-# # PRO TIP: Immediately pass the data into a Pandas DataFrame for easy analysis
-# df = pd.DataFrame(data)
-# print("Data from Sheet:")
-# print(df.head())
-
-# # ==========================================
-# # --- WRITE DATA ---
-# # ==========================================
-
-# # Append a single row to the bottom of the data
-# new_row = ["Jane Doe", "jane.doe@example.com", "Engineer", 85000]
-# worksheet.append_row(new_row)
-# print("\nNew row appended successfully!")
+def get_all_records_from_worksheet(worksheet: Any) -> list:
+    try:
+        records = worksheet.get_all_records()
+        logger.info(f"Retrieved {len(records)} records from the worksheet.")
+        return records
+    except Exception as e:
+        logger.error(f"Error retrieving records from the worksheet: {e}")
+        return []
