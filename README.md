@@ -142,7 +142,6 @@ The workflow is defined in [.github/workflows/receipt-ingestion.yml](.github/wor
 ```
 Receipt-Analysis/
 ├── main.py                   # Main entry point for receipt processing
-├── function_app.py           # Legacy Azure Function (for reference)
 ├── config.py                 # Configuration loader
 ├── repository_path.json      # Multiple drive/sheet configurations
 ├── requirements.txt          # Python dependencies
@@ -171,17 +170,20 @@ Receipt-Analysis/
 ### 3. Get IDs
 
 - **Drive Folder ID**: From the folder URL `https://drive.google.com/drive/folders/{FOLDER_ID}`
-- **Worksheet ID**: From the sheet's gid parameter or use `0` for the first sheet
+- **Worksheet ID**: From the sheet's gid parameter (e.g., `gid=133169438`)
 
 ## Project Structure
 
 ```
 Receipt-Analysis/
-├── function_app.py          # Main Azure Function with timer trigger
-├── config.py                # Configuration loader
-├── requirements.txt         # Python dependencies
-├── host.json               # Azure Functions host configuration
-├── local.settings.json     # Local environment variables (gitignored)
+├── main.py                   # Main entry point for receipt processing
+├── config.py                 # Configuration loader
+├── repository_path.json      # Multiple drive/sheet configurations
+├── requirements.txt          # Python dependencies
+├── local.settings.json       # Local environment variables (gitignored)
+├── .github/
+│   └── workflows/
+│       └── receipt-ingestion.yml  # GitHub Actions workflow
 ├── helpers/
 │   ├── __init__.py
 │   ├── llm.py              # AI extraction logic (Pydantic AI)
@@ -195,17 +197,18 @@ Receipt-Analysis/
 
 ### Schedule
 
-The function runs on a CRON schedule defined in `function_app.py`:
+The workflow runs on a CRON schedule defined in [.github/workflows/receipt-ingestion.yml](.github/workflows/receipt-ingestion.yml):
 
-```python
-schedule="0 0 0 * * 6"  # Every Saturday at midnight
+```yaml
+schedule:
+  - cron: '0 0 * * 6'  # Every Saturday at midnight UTC
 ```
 
 Modify this to change the execution frequency.
 
 ### Concurrency
 
-Adjust concurrent processing in `function_app.py`:
+Adjust concurrent processing in [main.py](main.py):
 
 ```python
 semaphore = asyncio.Semaphore(5)  # Process 5 files at once
@@ -221,9 +224,7 @@ Increase/decrease based on your API rate limits and memory.
 - GIF
 - BMP
 
-## Supported Image Formats
-
-Add or remove formats in `helpers/g_drive.py`:
+Add or remove formats in [helpers/g_drive.py](helpers/g_drive.py):
 
 ```python
 SUPPORTED_IMAGE_MIME_TYPES = {
@@ -236,8 +237,8 @@ SUPPORTED_IMAGE_MIME_TYPES = {
 ## Monitoring
 
 View logs in:
-- **Local**: Terminal output when running `func start`
-- **Azure**: Function App → Functions → receipt_ingestion → Monitor
+- **Local**: Terminal output when running `python main.py`
+- **GitHub Actions**: Actions tab → Receipt Ingestion workflow → View logs
 
 ## Troubleshooting
 
@@ -249,32 +250,19 @@ View logs in:
 - Ensure service account has access to Drive folder and Sheet
 - Verify `GOOGLE_PRIVATE_KEY` contains `\n` (newlines)
 
-### Memory Issues
-- Increase Function App instance size
-- Reduce concurrent processing (lower `Semaphore` value)
-
 ### Rate Limiting
-- Decrease concurrency level
+- Decrease concurrency level in [main.py](main.py)
 - Add delays between batches
 - Check Azure OpenAI quota
 
 ## Dependencies
 
-- `azure-functions` - Azure Functions runtime
 - `openai` - OpenAI client for Azure integration
 - `pydantic-ai` - AI agent framework with structured output
 - `google-api-python-client` - Google Drive API
 - `gspread` - Google Sheets API wrapper
 - `oauth2client` - Google authentication
 - `python-dotenv` - Environment variable loading
-
-## License
-
-[Add your license here]
-
-## Contributing
-
-[Add contribution guidelines here]
 
 ## Author
 
