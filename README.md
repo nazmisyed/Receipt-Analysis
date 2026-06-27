@@ -1,6 +1,6 @@
 # Receipt Analysis
 
-Automated receipt extraction and analysis system using Azure OpenAI and Google Drive/Sheets integration. This Azure Function automatically processes receipt images from Google Drive, extracts structured data using AI, and stores results in Google Sheets.
+Automated receipt extraction and analysis system using Azure OpenAI and Google Drive/Sheets integration. This system uses GitHub Actions to automatically process receipt images from Google Drive, extract structured data using AI, and store results in Google Sheets.
 
 ## Features
 
@@ -15,19 +15,20 @@ Automated receipt extraction and analysis system using Azure OpenAI and Google D
 
 The system extracts the following information from receipts:
 
-- **Receipt Date**: Transaction date in YYYY-MM-DD format (supports Malaysian DD/MM/YYYY format)
+- **Receipt Date & Time**: Transaction date and time in YYYY-MM-DD HH:MM format (supports Malaysian DD/MM/YYYY format)
 - **Title**: Vendor/store name
 - **Total Amount**: Final payment amount (numeric value only)
-- **Confidence**: Extraction quality assessment (low/medium/high)
 - **File Name**: Original image filename from Google Drive
-- **Processed Date**: Date when the receipt was processed
+- **Source**: Direct Google Drive link to the receipt image
+- **Processed Date & Time**: Date and time when the receipt was processed
+- **Confidence**: Extraction quality assessment (low/medium/high)
 
 ## Architecture
 
 ```
 Google Drive (Receipt Images)
         ↓
-Azure Function (Timer Trigger)
+GitHub Actions (Scheduled Workflow)
         ↓
 Azure OpenAI (gpt-5.4-nano)
         ↓
@@ -36,14 +37,13 @@ Google Sheets (Structured Data)
 
 ## Prerequisites
 
-- **Azure Account** with:
-  - Azure Functions capability
-  - Azure OpenAI or AI Foundry access
+- **GitHub Account** with Actions enabled
+- **Azure Account** with Azure OpenAI or AI Foundry access
 - **Google Account** with:
   - Google Drive API enabled
   - Google Sheets API enabled
   - Service account credentials
-- **Python 3.12**
+- **Python 3.11+**
 
 ## Local Setup
 
@@ -60,16 +60,33 @@ cd Receipt-Analysis
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
+### 3. Configure Repository Settings
 
-Create a `local.settings.json` file:
+Create a `repository_path.json` file with your drive folders and worksheets:
+
+```json
+[
+  {
+    "GOOGLE_SHEET_NAME": "Receipt Analysis",
+    "GOOGLE_WORKSHEET_ID": "133169438",
+    "GOOGLE_DRIVE_FOLDER_ID": "157SUisvdKbdOxqPY1ByGhbvtpt0sXiGu"
+  },
+  {
+    "GOOGLE_SHEET_NAME": "Receipt Analysis",
+    "GOOGLE_WORKSHEET_ID": "402123830",
+    "GOOGLE_DRIVE_FOLDER_ID": "1W9gXk4GLmbBUyar3OBJ19Xp4BP0QrfbH"
+  }
+]
+```
+
+### 4. Configure Environment Variables
+
+Create a `local.settings.json` file for local testing:
 
 ```json
 {
   "IsEncrypted": false,
   "Values": {
-    "AzureWebJobsStorage": "",
-    "FUNCTIONS_WORKER_RUNTIME": "python",
     "OPEN_AI_KEY": "your-azure-openai-key",
     "OPEN_AI_ENDPOINT": "https://your-foundry-endpoint.services.ai.azure.com/openai/v1",
     "OPEN_AI_DEPLOYMENT_NAME": "gpt-5.4-nano",
@@ -83,39 +100,58 @@ Create a `local.settings.json` file:
     "GOOGLE_TOKEN_URI": "https://oauth2.googleapis.com/token",
     "GOOGLE_AUTH_PROVIDER_X509_CERT_URL": "https://www.googleapis.com/oauth2/v1/certs",
     "GOOGLE_CLIENT_X509_CERT_URL": "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40project.iam.gserviceaccount.com",
-    "GOOGLE_UNIVERSE_DOMAIN": "googleapis.com",
-    "GOOGLE_SHEET_NAME": "Receipt Analysis",
-    "GOOGLE_WORKSHEET_ID": "0",
-    "GOOGLE_DRIVE_FOLDER_ID": "your-folder-id"
+    "GOOGLE_UNIVERSE_DOMAIN": "googleapis.com"
   }
 }
 ```
 
-### 4. Run Locally
+### 5. Run Locally
 
 ```bash
-func start
+python main.py
 ```
 
-The function will run immediately due to `run_on_startup=True`.
+## GitHub Actions Setup
 
-## Azure Deployment
+### 1. Configure GitHub Secrets
 
-### 1. Create Azure Resources
+In your GitHub repository, go to **Settings → Secrets and variables → Actions** and add the following secrets:
 
-- **Resource Group**: `rg-receipt-analysis`
-- **Function App**: Python 3.12, Consumption or Premium plan
-- **Recommended**: 1024 MB or higher instance size for concurrent processing
+- `OPEN_AI_KEY`
+- `OPEN_AI_ENDPOINT`
+- `OPEN_AI_DEPLOYMENT_NAME`
+- `GOOGLE_PROJECT_ID`
+- `GOOGLE_PRIVATE_KEY_ID`
+- `GOOGLE_PRIVATE_KEY` (the entire private key including `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----`)
+- `GOOGLE_CLIENT_EMAIL`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_X509_CERT_URL`
 
-### 2. Deploy the Function
+### 2. Workflow Configuration
 
-```bash
-func azure functionapp publish <your-function-app-name>
+The workflow is defined in [.github/workflows/receipt-ingestion.yml](.github/workflows/receipt-ingestion.yml) and will:
+
+- Run automatically every Saturday at midnight UTC
+- Can be triggered manually from the Actions tab
+- Install dependencies and run the receipt processing script
+- Upload logs on failure for debugging
+(e.g., `gid=133169438`)
+
+## Project Structure
+
 ```
-
-### 3. Configure Application Settings
-
-In the Azure Portal, add all environment variables from `local.settings.json` to your Function App's Application Settings.
+Receipt-Analysis/
+├── main.py                   # Main entry point for receipt processing
+├── function_app.py           # Legacy Azure Function (for reference)
+├── config.py                 # Configuration loader
+├── repository_path.json      # Multiple drive/sheet configurations
+├── requirements.txt          # Python dependencies
+├── local.settings.json       # Local environment variables (gitignored)
+├── .github/
+│   └── workflows/
+│       └── receipt-ingestion.yml  # GitHub Actions workflow
+- Check logs for processing details
+- Download failure artifacts if errors occur
 
 ## Google Cloud Setup
 

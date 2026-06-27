@@ -26,6 +26,22 @@ def _get_setting(name):
     return os.getenv(name) or config_data.get(name)
 
 
+def _load_repository_configs():
+    """Load multiple repository configurations from repository_path.json."""
+    try:
+        with open("repository_path.json", "r", encoding="utf-8") as repo_file:
+            configs = json.load(repo_file)
+        if isinstance(configs, list):
+            logger.info("Loaded %d repository configuration(s) from repository_path.json", len(configs))
+            return configs
+        elif isinstance(configs, dict):
+            # Single config as dict, wrap in list
+            return [configs]
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+        logger.warning("Could not load repository_path.json: %s", e)
+    return []
+
+
 config_data = _load_config_data()
 
 OPEN_AI_KEY = _get_setting("OPEN_AI_KEY")
@@ -44,6 +60,16 @@ GOOGLE_TOKEN_URI = _get_setting("GOOGLE_TOKEN_URI")
 GOOGLE_AUTH_PROVIDER_X509_CERT_URL = _get_setting("GOOGLE_AUTH_PROVIDER_X509_CERT_URL")
 GOOGLE_CLIENT_X509_CERT_URL = _get_setting("GOOGLE_CLIENT_X509_CERT_URL")
 GOOGLE_UNIVERSE_DOMAIN = _get_setting("GOOGLE_UNIVERSE_DOMAIN")
-GOOGLE_DRIVE_FOLDER_ID = _get_setting("GOOGLE_DRIVE_FOLDER_ID")
-GOOGLE_SHEET_NAME = _get_setting("GOOGLE_SHEET_NAME")
-GOOGLE_WORKSHEET_ID = _get_setting("GOOGLE_WORKSHEET_ID")
+
+# Load multiple repository configurations
+REPOSITORY_CONFIGS = _load_repository_configs()
+
+# Keep legacy single config support (from first config or env vars)
+if REPOSITORY_CONFIGS:
+    GOOGLE_DRIVE_FOLDER_ID = REPOSITORY_CONFIGS[0].get("GOOGLE_DRIVE_FOLDER_ID")
+    GOOGLE_SHEET_NAME = REPOSITORY_CONFIGS[0].get("GOOGLE_SHEET_NAME")
+    GOOGLE_WORKSHEET_ID = REPOSITORY_CONFIGS[0].get("GOOGLE_WORKSHEET_ID")
+else:
+    GOOGLE_DRIVE_FOLDER_ID = _get_setting("GOOGLE_DRIVE_FOLDER_ID")
+    GOOGLE_SHEET_NAME = _get_setting("GOOGLE_SHEET_NAME")
+    GOOGLE_WORKSHEET_ID = _get_setting("GOOGLE_WORKSHEET_ID")

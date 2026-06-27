@@ -1,0 +1,64 @@
+name: Receipt Ingestion
+
+on:
+  # Run every Saturday at midnight UTC
+  schedule:
+    - cron: '0 0 * * 6'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  process-receipts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create local.settings.json
+        run: |
+          cat > local.settings.json << EOF
+          {
+            "IsEncrypted": false,
+            "Values": {
+              "OPEN_AI_KEY": "${{ secrets.OPEN_AI_KEY }}",
+              "OPEN_AI_ENDPOINT": "${{ secrets.OPEN_AI_ENDPOINT }}",
+              "OPEN_AI_DEPLOYMENT_NAME": "${{ secrets.OPEN_AI_DEPLOYMENT_NAME }}",
+              "GOOGLE_TYPE": "service_account",
+              "GOOGLE_PROJECT_ID": "${{ secrets.GOOGLE_PROJECT_ID }}",
+              "GOOGLE_PRIVATE_KEY_ID": "${{ secrets.GOOGLE_PRIVATE_KEY_ID }}",
+              "GOOGLE_PRIVATE_KEY": "${{ secrets.GOOGLE_PRIVATE_KEY }}",
+              "GOOGLE_CLIENT_EMAIL": "${{ secrets.GOOGLE_CLIENT_EMAIL }}",
+              "GOOGLE_CLIENT_ID": "${{ secrets.GOOGLE_CLIENT_ID }}",
+              "GOOGLE_AUTH_URI": "https://accounts.google.com/o/oauth2/auth",
+              "GOOGLE_TOKEN_URI": "https://oauth2.googleapis.com/token",
+              "GOOGLE_AUTH_PROVIDER_X509_CERT_URL": "https://www.googleapis.com/oauth2/v1/certs",
+              "GOOGLE_CLIENT_X509_CERT_URL": "${{ secrets.GOOGLE_CLIENT_X509_CERT_URL }}",
+              "GOOGLE_UNIVERSE_DOMAIN": "googleapis.com"
+            }
+          }
+          EOF
+      
+      - name: Run receipt ingestion
+        run: python main.py
+      
+      - name: Upload logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: receipt-ingestion-logs
+          path: |
+            *.log
+          retention-days: 7

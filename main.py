@@ -1,12 +1,11 @@
-from typing import Any
+"""
+Main entry point for receipt ingestion workflow.
+Runs as a standalone script for GitHub Actions.
+"""
 import asyncio
+from typing import Any
 
-import azure.functions as func
-
-from config import (
-    REPOSITORY_CONFIGS,
-    logger,
-)
+from config import REPOSITORY_CONFIGS, logger
 from helpers.g_drive import (
     SUPPORTED_IMAGE_MIME_TYPES,
     download_file_as_binary,
@@ -19,8 +18,6 @@ from helpers.g_sheet import (
     get_g_worksheet,
 )
 from helpers.llm import extract_receipt_info
-
-app = func.FunctionApp()
 
 
 DEFAULT_SHEET_COLUMNS = [
@@ -159,7 +156,7 @@ async def _process_single_repository(
     return processed_count
 
 
-async def _run_receipt_ingestion() -> int:
+async def run_receipt_ingestion() -> int:
     """Process all repository configurations."""
     if not REPOSITORY_CONFIGS:
         logger.error("No repository configurations found. Skipping run.")
@@ -184,21 +181,17 @@ async def _run_receipt_ingestion() -> int:
     return total_processed
 
 
-@app.timer_trigger(
-    schedule="0 0 0 * * 6",
-    arg_name="myTimer",
-    run_on_startup=True,
-    use_monitor=False,
-)
-async def receipt_ingestion(myTimer: func.TimerRequest) -> None:
+async def main():
+    """Main entry point."""
     try:
-        if myTimer.past_due:
-            logger.warning("Timer is running late.")
-
         logger.info("Receipt ingestion run started.")
-        processed_count = await _run_receipt_ingestion()
+        processed_count = await run_receipt_ingestion()
         logger.info("Receipt ingestion run completed. New receipts processed: %s", processed_count)
+        return processed_count
     except Exception:
         logger.exception("Receipt ingestion run failed.")
         raise
 
+
+if __name__ == "__main__":
+    asyncio.run(main())
