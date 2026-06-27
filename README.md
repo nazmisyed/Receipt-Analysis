@@ -146,10 +146,15 @@ Receipt-Analysis/
 ├── repository_path.json      # Multiple drive/sheet configurations
 ├── requirements.txt          # Python dependencies
 ├── local.settings.json       # Local environment variables (gitignored)
+├── helpers/                  # Helper modules
+│   ├── __init__.py          # Package initializer
+│   ├── g_drive.py           # Google Drive integration
+│   ├── g_sheet.py           # Google Sheets integration
+│   ├── llm.py               # Azure OpenAI/Pydantic AI agent
+│   └── utils.py             # Utility functions
 ├── .github/
 │   └── workflows/
 │       └── receipt-ingestion.yml  # GitHub Actions workflow
-
 ```
 
 ## Google Cloud Setup
