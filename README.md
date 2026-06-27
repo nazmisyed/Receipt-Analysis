@@ -149,8 +149,8 @@ Receipt-Analysis/
 ├── .github/
 │   └── workflows/
 │       └── receipt-ingestion.yml  # GitHub Actions workflow
-- Check logs for processing details
-- Download failure artifacts if errors occur
+
+```
 
 ## Google Cloud Setup
 
@@ -172,26 +172,6 @@ Receipt-Analysis/
 - **Drive Folder ID**: From the folder URL `https://drive.google.com/drive/folders/{FOLDER_ID}`
 - **Worksheet ID**: From the sheet's gid parameter (e.g., `gid=133169438`)
 
-## Project Structure
-
-```
-Receipt-Analysis/
-├── main.py                   # Main entry point for receipt processing
-├── config.py                 # Configuration loader
-├── repository_path.json      # Multiple drive/sheet configurations
-├── requirements.txt          # Python dependencies
-├── local.settings.json       # Local environment variables (gitignored)
-├── .github/
-│   └── workflows/
-│       └── receipt-ingestion.yml  # GitHub Actions workflow
-├── helpers/
-│   ├── __init__.py
-│   ├── llm.py              # AI extraction logic (Pydantic AI)
-│   ├── g_drive.py          # Google Drive integration
-│   ├── g_sheet.py          # Google Sheets integration
-│   └── utils.py            # Utility functions
-└── README.md
-```
 
 ## Configuration
 
